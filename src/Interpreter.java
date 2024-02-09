@@ -39,13 +39,12 @@ public class Interpreter {
 
     public void interpret() {
         while (lines.size() > programCounter) {
-            System.out.println("-+- NEW LINE -+-");
+            //System.out.println("-+- NEW LINE -+-");
             String line = lines.get(programCounter);
             instruction(line);
             programCounter++;
         }
         System.out.println(variables);
-        tempVariables.clear();
     }
 
     private String instruction(String instruction) {
@@ -54,7 +53,7 @@ public class Interpreter {
             return null;
         }
         instruction = instruction.trim();
-        System.out.println("instr: " + instruction);
+        //System.out.println("instr: " + instruction);
 
         if (instruction.startsWith("//")) {
             return null;
@@ -64,9 +63,9 @@ public class Interpreter {
         }
 
         instruction = tempBrackets(instruction);
-        System.out.println(tempVariables);
+        //System.out.println("brackets: " + instruction);
 
-        List<String> operated = new ArrayList<>();
+        List<String> operands = new ArrayList<>();
         List<String> operators = new ArrayList<>();
 
         String[] op = instruction.split(OPERATORS.pattern());
@@ -80,12 +79,46 @@ public class Interpreter {
             operators.add(opp.substring(0, operator.text.length()));
             cutInstruction = opp.substring(operator.text.length());
         }
-        System.out.println("ops " + String.join(",", op));
-        System.out.println("opr " + operators);
 
-        System.out.println("new: " + instruction);
+        return evaluate(Arrays.stream(op).map(e -> e.trim()).toList(), operators);
+    }
 
-        return null;
+    private String evaluate(List<String> operands, List<String> operators) {
+        if (operators.isEmpty()) {
+            if (!operands.isEmpty()) {
+                return operands.get(0);
+            }
+            return null;
+        }
+        int operatorIndex = 0;
+        if (operators.stream().anyMatch(OPERATORS_LIST_HIGH::contains)) {
+            while (!OPERATORS_LIST_HIGH.contains(operators.get(operatorIndex))) {
+                operatorIndex++;
+            }
+        }
+        List<String> newOperands = new ArrayList<>();
+        List<String> newOperators = new ArrayList<>();
+        for (int i = 0; i < operators.size(); i++) {
+            if (i != operatorIndex) {
+                newOperators.add(operators.get(i));
+            }
+        }
+        for (int i = 0; i < operands.size(); i++) {
+            if (i != operatorIndex && i != operatorIndex + 1) {
+                newOperands.add(operands.get(i));
+            }
+        }
+        String left = operands.get(operatorIndex);
+        String right = operands.get(operatorIndex + 1);
+        String operator = operators.get(operatorIndex);
+        String result = handleEquation(left, right, operator);
+        newOperands.add(operatorIndex, result);
+        //System.out.println("oops " + operands);
+        //System.out.println("oopr " + operators);
+        //System.out.println("res " + result);
+        //System.out.println("nops " + newOperands);
+        //System.out.println("nopr " + newOperators);
+        return evaluate(newOperands, newOperators);
     }
 
     private Match findFirst(String string, List<String> matches) {
@@ -114,7 +147,7 @@ public class Interpreter {
         return null;
     }
 
-    private String handleEquation(String equation) {
+    private String handleEquation(String left, String right, String operator) {
 //        Match match = findFirst(equation, );
 //
 //        right = instruction(right);
@@ -125,23 +158,26 @@ public class Interpreter {
 ////        }
 //
 //        left = instruction(left);
+        left = left.trim();
+        right = right.trim();
+        //System.out.println("OP: " + left + operator + right);
 //
-//        if (operator.text.equals("==")) {
-//            return Boolean.toString(left.equals(right));
-//        } else if (operator.text.equals("!=")) {
-//            return Boolean.toString(!left.equals(right));
-//        }
-//
-//        if (NUMBER.matcher(left).matches() && NUMBER.matcher(right).matches()) {
-//            System.out.println(interpretMath(operator.text, Double.parseDouble(left), Double.parseDouble(right)));
-//            return interpretMath(operator.text, Double.parseDouble(left), Double.parseDouble(right));
-//        }
-//        if (STRING.matcher(left).matches() && STRING.matcher(right).matches() && operator.text.equals("+")) {
+        if (operator.equals("==")) {
+            return Boolean.toString(left.equals(right));
+        } else if (operator.equals("!=")) {
+            return Boolean.toString(!left.equals(right));
+        }
+
+        if (NUMBER.matcher(left).matches() && NUMBER.matcher(right).matches()) {
+            //System.out.println(interpretMath(operator, Double.parseDouble(left), Double.parseDouble(right)));
+            return interpretMath(operator, Double.parseDouble(left), Double.parseDouble(right));
+        }
+        if (STRING.matcher(left).matches() && STRING.matcher(right).matches() && operator.equals("+")) {
+            return "\"" + left.substring(1, left.length() - 1) + right.substring(1, right.length() - 1) + "\"";
+        }
+//        if (BOOLEAN.matcher(left).matches() && BOOLEAN.matcher(right).matches() && operator.text.equals("+")) {
 //            return "\"" + left.substring(1, left.length() - 1) + right.substring(1, right.length() - 1) + "\"";
 //        }
-////        if (BOOLEAN.matcher(left).matches() && BOOLEAN.matcher(right).matches() && operator.text.equals("+")) {
-////            return "\"" + left.substring(1, left.length() - 1) + right.substring(1, right.length() - 1) + "\"";
-////        }
         return null;
     }
 
@@ -152,7 +188,11 @@ public class Interpreter {
         for (int i = 0; i < instruction.length(); i++) {
             String sub = instruction.substring(i);
             if (sub.startsWith("(")) {
-                return tempBrackets(handleBrackets(sub));
+                String left = "";
+                if (i != 0) {
+                    left = instruction.substring(0, i);
+                }
+                return left + tempBrackets(handleBrackets(sub));
             }
         }
         return instruction;
@@ -166,11 +206,11 @@ public class Interpreter {
         int i = 1;
         while (true) {
             if (open == 0) {
-                String bracket = brackets.substring(0, i);
-                String name = rndTempName();
-                tempVariables.put(name, bracket);
-                String newInstruction = name + brackets.substring(i);
-                System.out.println("newInstruction: " + newInstruction);
+                String bracket = brackets.substring(1, i - 1);
+//                String name = rndTempName();
+//                tempVariables.put(name, bracket);
+                String newInstruction = instruction(bracket) + brackets.substring(i);
+                //System.out.println("newInstruction: " + newInstruction);
                 return newInstruction;
             }
             if (brackets.length() <= i) {
@@ -205,33 +245,33 @@ public class Interpreter {
         instruction = instruction.trim();
 
 //        if (EQUATION.matcher(instruction).matches()) {
-//            System.out.println("EQUATION");
+//            //System.out.println("EQUATION");
 //            return handleEquation(instruction);
 //        }
 
         if (TEMP_VARIABLE.matcher(instruction).matches()) {
-            System.out.println("TEMP_VARIABLE" + tempVariables);
-            System.out.println(tempVariables.get(instruction));
+            //System.out.println("TEMP_VARIABLE" + tempVariables);
+            //System.out.println(tempVariables.get(instruction));
             return tempVariables.get(instruction);
         }
         if (VARIABLE.matcher(instruction).matches()) {
-            System.out.println("VARIABLE" + variables);
-            System.out.println(variables.get(instruction));
+            //System.out.println("VARIABLE" + variables);
+            //System.out.println(variables.get(instruction));
             return variables.get(instruction);
         }
         if (STRING.matcher(instruction).matches()) {
-            System.out.println("STRING");
-            System.out.println(instruction);
+            //System.out.println("STRING");
+            //System.out.println(instruction);
             return instruction;
         }
         if (NUMBER.matcher(instruction).matches()) {
-            System.out.println("NUMBER");
-            System.out.println(instruction);
+            //System.out.println("NUMBER");
+            //System.out.println(instruction);
             return instruction;
         }
         if (BOOLEAN.matcher(instruction).matches()) {
-            System.out.println("BOOLEAN");
-            System.out.println(instruction.toLowerCase());
+            //System.out.println("BOOLEAN");
+            //System.out.println(instruction.toLowerCase());
             return instruction.toLowerCase();
         }
         return null;
