@@ -1,9 +1,11 @@
+package balls;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 public class Main {
 
@@ -19,7 +21,7 @@ public class Main {
             }
             BufferedReader reader = new BufferedReader(new FileReader(file));
             List<String> lines = reader.lines().toList();
-            new Interpreter(lines).interpret();
+            new Interpreter(file.getName().substring(0, file.getName().length() - 4), lines);
         }
     }
 }

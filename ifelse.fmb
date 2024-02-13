@@ -1,0 +1,21 @@
+$i = 2
+$j = false
+
+log main(test($j)==1, 1)
+
+$str = "yea"
+
+$t = test($j) # 2
+$m = main($j, test($i == 1)) # "yea22"
+
+main(!$j, $i) # "yea2221"
+
+function test($v)
+  if $v
+    return 1
+  else
+    return 2
+
+function main($i, $j)
+  $str = $str + $j + test($i)
+  return $str
